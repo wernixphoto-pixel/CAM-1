@@ -1,9 +1,6 @@
-```html
 <!DOCTYPE html>
 <html lang="id">
-
 <head>
-
 <meta charset="UTF-8">
 
 <meta name="viewport"
@@ -12,478 +9,161 @@
                maximum-scale=1.0,
                user-scalable=no">
 
-<title>CAM 1 - VDO.Ninja</title>
-
+<title>CAM 1</title>
 
 <style>
-
-/* =========================================
-   RESET
-========================================= */
-
-* {
-    margin: 0;
-    padding: 0;
-    box-sizing: border-box;
-}
-
-
-/* =========================================
-   HTML & BODY
-========================================= */
-
 html,
 body {
-
+    margin: 0;
+    padding: 0;
     width: 100%;
     height: 100%;
-
     overflow: hidden;
-
-    background: transparent;
-
+    background: #000;
 }
 
-
-/* =========================================
-   VIDEO
-========================================= */
-
 #video {
-
     position: fixed;
-
-    top: 0;
-    left: 0;
+    inset: 0;
 
     width: 100%;
     height: 100%;
 
     object-fit: contain;
 
+    background: #000;
+
     display: block;
-
-    border: none;
-    outline: none;
-
-    background: transparent;
-
-    opacity: 0;
-
-    transition:
-        opacity 0.2s linear;
-
 }
-
-
-/* =========================================
-   VIDEO AKTIF
-========================================= */
-
-#video.active {
-
-    opacity: 1;
-
-}
-
 </style>
-
 </head>
-
 
 <body>
 
-
-<!-- =======================================
-     VIDEO VDO.NINJA
-======================================== -->
-
 <video
-
     id="video"
-
     autoplay
-    muted
     playsinline
     webkit-playsinline
-
-    disablepictureinpicture
-
-    controlslist="
-        nodownload
-        noplaybackrate
-        nofullscreen
-    "
-
+    muted
 ></video>
-
-
-
-<!-- =======================================
-     VDO.NINJA SDK
-======================================== -->
 
 <script src="https://cdn.jsdelivr.net/gh/steveseguin/ninjasdk@latest/vdoninja-sdk.min.js"></script>
 
-
-
 <script>
-
-/* =========================================
-   VDO.NINJA STREAM ID
-========================================= */
 
 const STREAM_ID = "seru17081945";
 
-
-
-/* =========================================
-   VIDEO ELEMENT
-========================================= */
-
-const video =
-    document.getElementById("video");
-
-
-
-/* =========================================
-   VARIABLE
-========================================= */
+const video = document.getElementById("video");
 
 let vdo = null;
-
-let currentStream = null;
-
-let reconnectTimer = null;
-
+let stream = null;
 
 
 /* =========================================
-   SHOW VIDEO
+   BUAT VIDEO STREAM
 ========================================= */
 
-function showVideo() {
+function setVideoTrack(track) {
 
-    video.classList.add("active");
+    console.log("VIDEO TRACK:", track);
 
-}
-
-
-
-/* =========================================
-   HIDE VIDEO
-========================================= */
-
-function hideVideo() {
-
-    video.classList.remove("active");
-
-}
-
-
-
-/* =========================================
-   PLAY VIDEO
-========================================= */
-
-function playVideo() {
-
-    if (!video.srcObject) {
-
+    if (!track) {
+        console.log("Track kosong");
         return;
-
     }
 
+    if (stream) {
+        stream.getTracks().forEach(t => t.stop());
+    }
 
-    const playPromise =
-        video.play();
+    stream = new MediaStream();
 
+    stream.addTrack(track);
 
-    if (playPromise !== undefined) {
+    video.srcObject = stream;
 
-        playPromise
-
-        .then(function() {
-
-            showVideo();
-
+    video.play()
+        .then(() => {
+            console.log("VIDEO BERHASIL PLAY");
         })
-
-        .catch(function() {
-
-            setTimeout(
-
-                playVideo,
-
-                500
-
-            );
-
+        .catch(error => {
+            console.log("PLAY ERROR:", error);
         });
 
-    }
+    track.onended = function() {
+
+        console.log("VIDEO TRACK BERHENTI");
+
+        setTimeout(connect, 2000);
+
+    };
 
 }
 
 
-
 /* =========================================
-   BUAT MEDIA STREAM
-========================================= */
-
-function createVideoStream(track) {
-
-
-    /* Hapus stream lama */
-
-    if (currentStream) {
-
-        currentStream
-            .getTracks()
-            .forEach(function(oldTrack) {
-
-                oldTrack.stop();
-
-            });
-
-    }
-
-
-    /* Buat MediaStream */
-
-    currentStream =
-        new MediaStream();
-
-
-    currentStream.addTrack(track);
-
-
-    /* Masukkan ke video */
-
-    video.srcObject =
-        currentStream;
-
-
-    console.log(
-        "Video track diterima"
-    );
-
-
-    /* =====================================
-       VIDEO SIAP
-    ===================================== */
-
-    video.onloadeddata =
-        function() {
-
-            playVideo();
-
-        };
-
-
-    video.oncanplay =
-        function() {
-
-            playVideo();
-
-        };
-
-
-    video.onplaying =
-        function() {
-
-            showVideo();
-
-        };
-
-
-    /* =====================================
-       TRACK BERHENTI
-    ===================================== */
-
-    track.addEventListener(
-        "ended",
-        function() {
-
-            console.log(
-                "Video track berhenti"
-            );
-
-
-            hideVideo();
-
-
-            scheduleReconnect();
-
-        }
-    );
-
-
-    /* =====================================
-       TRACK MUTED
-    ===================================== */
-
-    track.addEventListener(
-        "mute",
-        function() {
-
-            console.log(
-                "Video track muted"
-            );
-
-        }
-    );
-
-
-    /* =====================================
-       TRACK UNMUTED
-    ===================================== */
-
-    track.addEventListener(
-        "unmute",
-        function() {
-
-            console.log(
-                "Video track aktif kembali"
-            );
-
-
-            playVideo();
-
-        }
-    );
-
-
-    /* =====================================
-       PLAY
-    ===================================== */
-
-    playVideo();
-
-}
-
-
-
-/* =========================================
-   SETUP TRACK
-========================================= */
-
-function setupTrack() {
-
-
-    if (!vdo) {
-
-        return;
-
-    }
-
-
-    vdo.addEventListener(
-        "track",
-        function(event) {
-
-
-            if (!event.detail) {
-
-                return;
-
-            }
-
-
-            const track =
-                event.detail.track;
-
-
-            if (!track) {
-
-                return;
-
-            }
-
-
-            /* =================================
-               HANYA VIDEO
-            ================================= */
-
-            if (track.kind !== "video") {
-
-                return;
-
-            }
-
-
-            console.log(
-                "CAM 1 diterima dari VDO.Ninja"
-            );
-
-
-            createVideoStream(
-                track
-            );
-
-        }
-    );
-
-}
-
-
-
-/* =========================================
-   CONNECT
+   CONNECT VDO.NINJA
 ========================================= */
 
 async function connect() {
 
+    console.log("Menghubungkan VDO.Ninja...");
+
     try {
-
-
-        console.log(
-            "Menghubungkan VDO.Ninja..."
-        );
-
-
-        hideVideo();
-
-
-        /* =================================
-           Hapus koneksi lama
-        ================================= */
 
         if (vdo) {
 
             try {
-
                 vdo.disconnect();
-
-            }
-
-            catch(error) {}
+            } catch(e) {}
 
         }
 
+        vdo = new VDONinjaSDK({
 
-        vdo = null;
+            autoRecover: true,
+            autoRelay: true
 
-
-        /* =================================
-           BUAT SDK
-        ================================= */
-
-        vdo =
-            new VDONinjaSDK({
-
-                autoRecover: true,
-
-                autoRelay: true
-
-            });
+        });
 
 
         /* =================================
-           TRACK LISTENER
+           TERIMA TRACK
         ================================= */
 
-        setupTrack();
+        vdo.addEventListener("track", function(event) {
+
+            console.log("EVENT TRACK:", event);
+
+            if (!event.detail) {
+                console.log("event.detail kosong");
+                return;
+            }
+
+            const track = event.detail.track;
+
+            if (!track) {
+                console.log("track tidak ditemukan");
+                return;
+            }
+
+            console.log(
+                "TRACK KIND:",
+                track.kind
+            );
+
+            if (track.kind === "video") {
+
+                console.log(
+                    "CAM 1 VIDEO DITERIMA"
+                );
+
+                setVideoTrack(track);
+
+            }
+
+        });
 
 
         /* =================================
@@ -492,14 +172,13 @@ async function connect() {
 
         await vdo.connect();
 
-
         console.log(
-            "VDO.Ninja connected"
+            "VDO.Ninja CONNECTED"
         );
 
 
         /* =================================
-           REQUEST VIDEO
+           REQUEST CAM 1
         ================================= */
 
         await vdo.view(
@@ -507,18 +186,14 @@ async function connect() {
             STREAM_ID,
 
             {
-
-                audio: false,
-
-                video: true
-
+                video: true,
+                audio: false
             }
 
         );
 
-
         console.log(
-            "CAM 1 diminta:",
+            "REQUEST CAM 1:",
             STREAM_ID
         );
 
@@ -527,112 +202,19 @@ async function connect() {
 
     catch(error) {
 
-
         console.log(
-            "Connection error:",
+            "ERROR:",
             error
         );
 
-
-        hideVideo();
-
-
-        scheduleReconnect();
-
-    }
-
-}
-
-
-
-/* =========================================
-   RECONNECT
-========================================= */
-
-function scheduleReconnect() {
-
-
-    if (reconnectTimer) {
-
-        return;
-
-    }
-
-
-    console.log(
-        "Mencoba reconnect..."
-    );
-
-
-    reconnectTimer =
         setTimeout(
-
-            function() {
-
-                reconnectTimer = null;
-
-                connect();
-
-            },
-
+            connect,
             3000
-
         );
 
+    }
+
 }
-
-
-
-/* =========================================
-   CEK VIDEO SECARA BERKALA
-========================================= */
-
-setInterval(
-
-    function() {
-
-
-        if (!video.srcObject) {
-
-            return;
-
-        }
-
-
-        const tracks =
-            video.srcObject.getVideoTracks();
-
-
-        if (!tracks.length) {
-
-            hideVideo();
-
-            scheduleReconnect();
-
-            return;
-
-        }
-
-
-        const track =
-            tracks[0];
-
-
-        if (track.readyState === "ended") {
-
-            hideVideo();
-
-            scheduleReconnect();
-
-        }
-
-
-    },
-
-    3000
-
-);
-
 
 
 /* =========================================
@@ -643,8 +225,5 @@ connect();
 
 </script>
 
-
 </body>
-
 </html>
-```
