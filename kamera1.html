@@ -1,0 +1,691 @@
+```html
+<!DOCTYPE html>
+<html lang="id">
+
+<head>
+
+<meta charset="UTF-8">
+
+<meta name="viewport"
+      content="width=device-width,
+               initial-scale=1.0,
+               maximum-scale=1.0,
+               user-scalable=no">
+
+<title>VDO.Ninja Overlay</title>
+
+<style>
+
+/* =========================================
+   DASAR
+========================================= */
+
+html,
+body {
+
+    width: 100%;
+    height: 100%;
+
+    margin: 0;
+    padding: 0;
+
+    overflow: hidden;
+
+    background: transparent;
+
+}
+
+
+/* =========================================
+   VIDEO
+========================================= */
+
+#remoteVideo {
+
+    position: fixed;
+
+    left: 0;
+    top: 0;
+
+    width: 100%;
+    height: 100%;
+
+    object-fit: contain;
+
+    background: transparent;
+
+    border: none;
+    outline: none;
+
+    display: block;
+
+    opacity: 0;
+
+    transition: opacity 0.25s ease;
+
+}
+
+
+/* =========================================
+   VIDEO AKTIF
+========================================= */
+
+#remoteVideo.ready {
+
+    opacity: 1;
+
+}
+
+</style>
+
+</head>
+
+
+<body>
+
+
+<video
+    id="remoteVideo"
+    autoplay
+    muted
+    playsinline
+    webkit-playsinline>
+</video>
+
+
+<script src="https://cdn.jsdelivr.net/gh/steveseguin/ninjasdk@latest/vdoninja-sdk.min.js"></script>
+
+
+<script>
+
+/* =========================================
+   STREAM ID ANDA
+========================================= */
+
+const STREAM_ID = "seru17081945";
+
+
+/* =========================================
+   VIDEO ELEMENT
+========================================= */
+
+const video = document.getElementById("remoteVideo");
+
+
+/* =========================================
+   VDO.NINJA SDK
+========================================= */
+
+let vdo = null;
+
+let reconnectTimer = null;
+
+let connected = false;
+
+
+/* =========================================
+   SEMBUNYIKAN VIDEO
+========================================= */
+
+function hideVideo() {
+
+    video.classList.remove("ready");
+
+}
+
+
+/* =========================================
+   TAMPILKAN VIDEO
+========================================= */
+
+function showVideo() {
+
+    video.classList.add("ready");
+
+}
+
+
+/* =========================================
+   PLAY VIDEO
+========================================= */
+
+function playVideo() {
+
+    if (!video.srcObject) {
+        return;
+    }
+
+    video.play()
+        .then(() => {
+
+            showVideo();
+
+        })
+        .catch(() => {
+
+            /*
+                Coba lagi sebentar kemudian.
+            */
+
+            setTimeout(() => {
+
+                video.play()
+                    .then(() => {
+
+                        showVideo();
+
+                    })
+                    .catch(() => {});
+
+            }, 500);
+
+        });
+
+}
+
+
+/* =========================================
+   BUAT CONNECTION
+========================================= */
+
+async function startVDO() {
+
+    /*
+        Bersihkan timer sebelumnya.
+    */
+
+    if (reconnectTimer) {
+
+        clearTimeout(reconnectTimer);
+
+        reconnectTimer = null;
+
+    }
+
+
+    try {
+
+        /*
+            Buat SDK.
+        */
+
+        vdo = new VDONinjaSDK({
+
+            autoRecover: true,
+
+            autoRelay: true
+
+        });
+
+
+        /* ================================
+           CONNECT
+        ================================= */
+
+        await vdo.connect();
+
+
+        connected = true;
+
+
+        /* ================================
+           VIEW STREAM
+        ================================= */
+
+        await vdo.view(STREAM_ID, {
+
+            audio: false,
+
+            video: true
+
+        });
+
+
+        console.log(
+            "VDO.Ninja connected:",
+            STREAM_ID
+        );
+
+
+    }
+
+    catch (error) {
+
+        console.log(
+            "VDO.Ninja connection error:",
+            error
+        );
+
+
+        connected = false;
+
+        hideVideo();
+
+
+        scheduleReconnect();
+
+    }
+
+}
+
+
+/* =========================================
+   TERIMA TRACK
+========================================= */
+
+function setupEvents() {
+
+    if (!vdo) {
+        return;
+    }
+
+
+    vdo.addEventListener(
+        "track",
+        function(event) {
+
+            const detail = event.detail;
+
+
+            if (!detail) {
+                return;
+            }
+
+
+            const track = detail.track;
+
+
+            if (!track) {
+                return;
+            }
+
+
+            console.log(
+                "Track received:",
+                track.kind
+            );
+
+
+            /*
+                Kita hanya menggunakan VIDEO.
+            */
+
+            if (track.kind !== "video") {
+
+                return;
+
+            }
+
+
+            /*
+                Jika belum ada MediaStream,
+                buat satu.
+            */
+
+            if (!video.srcObject) {
+
+                video.srcObject =
+                    new MediaStream();
+
+            }
+
+
+            /*
+                Jangan tambahkan track
+                yang sama dua kali.
+            */
+
+            const existingTracks =
+                video.srcObject.getVideoTracks();
+
+
+            const alreadyExists =
+                existingTracks.includes(track);
+
+
+            if (!alreadyExists) {
+
+                video.srcObject.addTrack(track);
+
+            }
+
+
+            /*
+                Pastikan video aktif.
+            */
+
+            playVideo();
+
+        }
+    );
+
+
+    /* =====================================
+       VIDEO PLAYING
+    ===================================== */
+
+    video.addEventListener(
+        "playing",
+        function() {
+
+            console.log(
+                "Video playing"
+            );
+
+            showVideo();
+
+        }
+    );
+
+
+    /* =====================================
+       LOADED DATA
+    ===================================== */
+
+    video.addEventListener(
+        "loadeddata",
+        function() {
+
+            console.log(
+                "Video frame tersedia"
+            );
+
+            playVideo();
+
+        }
+    );
+
+
+    /* =====================================
+       CAN PLAY
+    ===================================== */
+
+    video.addEventListener(
+        "canplay",
+        function() {
+
+            playVideo();
+
+        }
+    );
+
+
+    /* =====================================
+       SDK CONNECTED
+    ===================================== */
+
+    vdo.addEventListener(
+        "connected",
+        function() {
+
+            console.log(
+                "SDK connected"
+            );
+
+        }
+    );
+
+
+    /* =====================================
+       RECOVERING
+    ===================================== */
+
+    vdo.addEventListener(
+        "connectionRecovering",
+        function() {
+
+            console.log(
+                "Connection recovering"
+            );
+
+            /*
+                Jangan tampilkan frame lama.
+            */
+
+            hideVideo();
+
+        }
+    );
+
+
+    /* =====================================
+       RECOVERED
+    ===================================== */
+
+    vdo.addEventListener(
+        "connectionRecovered",
+        function() {
+
+            console.log(
+                "Connection recovered"
+            );
+
+        }
+    );
+
+
+    /* =====================================
+       CONNECTION FAILED
+    ===================================== */
+
+    vdo.addEventListener(
+        "connectionFailed",
+        function() {
+
+            console.log(
+                "Connection failed"
+            );
+
+            connected = false;
+
+            hideVideo();
+
+            scheduleReconnect();
+
+        }
+    );
+
+
+    /* =====================================
+       DISCONNECTED
+    ===================================== */
+
+    vdo.addEventListener(
+        "disconnected",
+        function() {
+
+            console.log(
+                "Disconnected"
+            );
+
+            connected = false;
+
+            hideVideo();
+
+            scheduleReconnect();
+
+        }
+    );
+
+
+    /* =====================================
+       RECONNECTING
+    ===================================== */
+
+    vdo.addEventListener(
+        "reconnecting",
+        function() {
+
+            console.log(
+                "Reconnecting..."
+            );
+
+            hideVideo();
+
+        }
+    );
+
+
+    /* =====================================
+       RECONNECTED
+    ===================================== */
+
+    vdo.addEventListener(
+        "reconnected",
+        function() {
+
+            console.log(
+                "Reconnected"
+            );
+
+        }
+    );
+
+
+    /* =====================================
+       ERROR
+    ===================================== */
+
+    vdo.addEventListener(
+        "error",
+        function(event) {
+
+            console.log(
+                "VDO.Ninja error:",
+                event
+            );
+
+        }
+    );
+
+}
+
+
+/* =========================================
+   RECONNECT
+========================================= */
+
+function scheduleReconnect() {
+
+    if (reconnectTimer) {
+        return;
+    }
+
+
+    reconnectTimer = setTimeout(
+        function() {
+
+            reconnectTimer = null;
+
+            /*
+                Buat koneksi baru.
+            */
+
+            startVDO();
+
+        },
+        3000
+    );
+
+}
+
+
+/* =========================================
+   START
+========================================= */
+
+async function initialize() {
+
+    /*
+        Sembunyikan video
+        pada awal halaman.
+    */
+
+    hideVideo();
+
+
+    /*
+        Buat SDK.
+    */
+
+    vdo = new VDONinjaSDK({
+
+        autoRecover: true,
+
+        autoRelay: true
+
+    });
+
+
+    /*
+        Pasang event.
+    */
+
+    setupEvents();
+
+
+    /*
+        Connect.
+    */
+
+    try {
+
+        await vdo.connect();
+
+
+        connected = true;
+
+
+        /*
+            Minta stream.
+        */
+
+        await vdo.view(
+            STREAM_ID,
+            {
+                audio: false,
+                video: true
+            }
+        );
+
+
+        console.log(
+            "Viewing:",
+            STREAM_ID
+        );
+
+
+    }
+
+    catch (error) {
+
+        console.log(
+            "Initial connection failed:",
+            error
+        );
+
+
+        connected = false;
+
+        hideVideo();
+
+        scheduleReconnect();
+
+    }
+
+}
+
+
+/* =========================================
+   JALANKAN
+========================================= */
+
+initialize();
+
+
+</script>
+
+</body>
+
+</html>
+```
