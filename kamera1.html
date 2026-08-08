@@ -1,66 +1,50 @@
-<script src="https://cdn.jsdelivr.net/gh/steveseguin/ninjasdk@latest/vdoninja-sdk.min.js"></script>
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
 
-<script>
-const STREAM_ID = "seru17081945";
+<meta name="viewport"
+      content="width=device-width,
+      initial-scale=1.0,
+      maximum-scale=1.0,
+      user-scalable=no">
 
-const video = document.getElementById("video");
+<style>
 
-const vdo = new VDONinjaSDK({
-    autoRecover: true,
-    autoRelay: true
-});
-
-vdo.addEventListener("track", function(event) {
-
-    const track =
-        event.detail &&
-        event.detail.track;
-
-    if (!track) return;
-
-    if (track.kind !== "video") return;
-
-    const stream = new MediaStream();
-
-    stream.addTrack(track);
-
-    video.srcObject = stream;
-
-    video.play().then(function() {
-
-        video.classList.add("show");
-
-    }).catch(function(error) {
-
-        console.log("PLAY ERROR:", error);
-
-    });
-
-});
-
-async function start() {
-
-    try {
-
-        await vdo.connect();
-
-        await vdo.view(
-            STREAM_ID,
-            {
-                audio: false,
-                video: true
-            }
-        );
-
-        console.log("CAM 1 diminta");
-
-    } catch(error) {
-
-        console.log("VDO ERROR:", error);
-
-    }
-
+html,
+body {
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    background: transparent;
 }
 
-start();
-</script>
+iframe {
+    position: fixed;
+    left: 0;
+    top: 0;
+
+    width: 100%;
+    height: 100%;
+
+    border: 0;
+    margin: 0;
+    padding: 0;
+
+    background: transparent;
+}
+
+</style>
+</head>
+
+<body>
+
+<iframe
+    src="https://vdo.ninja/?view=seru17081945&cleanoutput&autoplay&mute"
+    allow="autoplay; camera; microphone; fullscreen; display-capture">
+</iframe>
+
+</body>
+</html>
