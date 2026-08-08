@@ -1,30 +1,40 @@
 <!DOCTYPE html>
 <html lang="id">
 <head>
+
 <meta charset="UTF-8">
 
 <meta name="viewport"
-      content="width=device-width,
-               initial-scale=1.0,
-               maximum-scale=1.0,
-               user-scalable=no">
+content="width=device-width,
+initial-scale=1.0,
+maximum-scale=1.0,
+user-scalable=no">
 
-<title>CAM 1</title>
+<title>CAM 1 TEST</title>
 
 <style>
+
 html,
 body {
+
     margin: 0;
     padding: 0;
+
     width: 100%;
     height: 100%;
+
     overflow: hidden;
+
     background: #000;
+
 }
 
 #video {
+
     position: fixed;
-    inset: 0;
+
+    left: 0;
+    top: 0;
 
     width: 100%;
     height: 100%;
@@ -33,94 +43,83 @@ body {
 
     background: #000;
 
-    display: block;
 }
+
+#status {
+
+    position: fixed;
+
+    left: 10px;
+    top: 10px;
+
+    z-index: 10;
+
+    color: white;
+
+    background: rgba(0,0,0,.7);
+
+    padding: 8px 12px;
+
+    font-family: Arial;
+
+    font-size: 14px;
+
+}
+
 </style>
+
 </head>
+
 
 <body>
 
+
+<div id="status">
+MEMULAI...
+</div>
+
+
 <video
-    id="video"
-    autoplay
-    playsinline
-    webkit-playsinline
-    muted
-></video>
+id="video"
+autoplay
+playsinline
+webkit-playsinline
+muted>
+</video>
+
 
 <script src="https://cdn.jsdelivr.net/gh/steveseguin/ninjasdk@latest/vdoninja-sdk.min.js"></script>
+
 
 <script>
 
 const STREAM_ID = "seru17081945";
 
-const video = document.getElementById("video");
+const video =
+document.getElementById("video");
 
-let vdo = null;
-let stream = null;
+const status =
+document.getElementById("status");
 
 
-/* =========================================
-   BUAT VIDEO STREAM
-========================================= */
+function log(text) {
 
-function setVideoTrack(track) {
+    console.log(text);
 
-    console.log("VIDEO TRACK:", track);
-
-    if (!track) {
-        console.log("Track kosong");
-        return;
-    }
-
-    if (stream) {
-        stream.getTracks().forEach(t => t.stop());
-    }
-
-    stream = new MediaStream();
-
-    stream.addTrack(track);
-
-    video.srcObject = stream;
-
-    video.play()
-        .then(() => {
-            console.log("VIDEO BERHASIL PLAY");
-        })
-        .catch(error => {
-            console.log("PLAY ERROR:", error);
-        });
-
-    track.onended = function() {
-
-        console.log("VIDEO TRACK BERHENTI");
-
-        setTimeout(connect, 2000);
-
-    };
+    status.innerText = text;
 
 }
 
 
-/* =========================================
-   CONNECT VDO.NINJA
-========================================= */
-
-async function connect() {
-
-    console.log("Menghubungkan VDO.Ninja...");
+async function start() {
 
     try {
 
-        if (vdo) {
+        log("Membuat VDO.Ninja...");
 
-            try {
-                vdo.disconnect();
-            } catch(e) {}
 
-        }
-
-        vdo = new VDONinjaSDK({
+        const vdo =
+        new VDONinjaSDK({
 
             autoRecover: true,
             autoRelay: true
@@ -128,73 +127,130 @@ async function connect() {
         });
 
 
-        /* =================================
-           TERIMA TRACK
-        ================================= */
+        log("CONNECT...");
 
-        vdo.addEventListener("track", function(event) {
-
-            console.log("EVENT TRACK:", event);
-
-            if (!event.detail) {
-                console.log("event.detail kosong");
-                return;
-            }
-
-            const track = event.detail.track;
-
-            if (!track) {
-                console.log("track tidak ditemukan");
-                return;
-            }
-
-            console.log(
-                "TRACK KIND:",
-                track.kind
-            );
-
-            if (track.kind === "video") {
-
-                console.log(
-                    "CAM 1 VIDEO DITERIMA"
-                );
-
-                setVideoTrack(track);
-
-            }
-
-        });
-
-
-        /* =================================
-           CONNECT
-        ================================= */
 
         await vdo.connect();
 
-        console.log(
-            "VDO.Ninja CONNECTED"
-        );
+
+        log("VDO.Ninja CONNECTED");
 
 
-        /* =================================
-           REQUEST CAM 1
-        ================================= */
+        /*
+         =====================================
+         REQUEST CAM
+         =====================================
+        */
 
         await vdo.view(
 
             STREAM_ID,
 
             {
+
                 video: true,
                 audio: false
+
             }
 
         );
 
-        console.log(
-            "REQUEST CAM 1:",
-            STREAM_ID
+
+        log(
+            "MEMINTA CAM 1..."
+        );
+
+
+        /*
+         =====================================
+         TRACK
+         =====================================
+        */
+
+        vdo.addEventListener(
+            "track",
+            function(event) {
+
+                console.log(
+                    "TRACK EVENT",
+                    event
+                );
+
+
+                if (!event.detail) {
+
+                    log(
+                        "TRACK DETAIL KOSONG"
+                    );
+
+                    return;
+
+                }
+
+
+                const track =
+                event.detail.track;
+
+
+                if (!track) {
+
+                    log(
+                        "TRACK TIDAK ADA"
+                    );
+
+                    return;
+
+                }
+
+
+                log(
+                    "TRACK: " +
+                    track.kind
+                );
+
+
+                if (
+                    track.kind ===
+                    "video"
+                ) {
+
+
+                    const mediaStream =
+                    new MediaStream();
+
+
+                    mediaStream.addTrack(
+                        track
+                    );
+
+
+                    video.srcObject =
+                    mediaStream;
+
+
+                    video.play()
+                    .then(function() {
+
+                        log(
+                            "VIDEO BERHASIL"
+                        );
+
+                    })
+                    .catch(function(error) {
+
+                        log(
+                            "PLAY ERROR"
+                        );
+
+                        console.log(
+                            error
+                        );
+
+                    });
+
+                }
+
+            }
         );
 
 
@@ -202,26 +258,18 @@ async function connect() {
 
     catch(error) {
 
-        console.log(
-            "ERROR:",
-            error
+        log(
+            "ERROR VDO.NINJA"
         );
 
-        setTimeout(
-            connect,
-            3000
-        );
+        console.log(error);
 
     }
 
 }
 
 
-/* =========================================
-   START
-========================================= */
-
-connect();
+start();
 
 </script>
 
